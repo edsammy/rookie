@@ -8,7 +8,7 @@ and update with your values from https://www.clients.portal.tryrook.io/home/sett
 
 ### Link User to Developer account
 1. Generate a QR code
-  (update user_id name that you want on line 9 of scripts/get_code.sh)
+  (update user_id name that you want on line 9 of [get_code.sh](./scripts/get_code.sh#L9))
   ```
   bash scripts/get_code.sh
   ```
@@ -22,4 +22,4 @@ and update with your values from https://www.clients.portal.tryrook.io/home/sett
 5. Scan the QR code
 
 ### Fetch user data
-Update user_ID in [fetch_data.go](./scripts/fetch_data.go#L25)
+Update user_ID in [fetch_data.go](./scripts/fetch_data.go#L15)
