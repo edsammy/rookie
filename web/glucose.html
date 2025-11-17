@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Blood Glucose</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #0d1117;
+        color: #c9d1d9;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #30363d;
+      }
+      .chart-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 240px;
+        border-bottom: 1px solid #161b22;
+      }
+      .chart-wrapper:last-of-type {
+        border-bottom: none;
+      }
+      .chart-title {
+        padding: 0.75rem 1.5rem 0;
+        margin: 0;
+        font-size: 0.95rem;
+        color: #8b949e;
+      }
+      .chart {
+        flex: 1;
+        min-height: 240px;
+      }
+      #status {
+        padding: 0.75rem 1.5rem;
+        border-top: 1px solid #30363d;
+        font-size: 0.9rem;
+        color: #8b949e;
+      }
+    </style>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1 style="margin: 0; font-size: 1.2rem">
+        Blood Glucose — <span id="user-label">david1</span>
+      </h1>
+    </header>
+
+    <section class="chart-wrapper">
+      <h2 class="chart-title">Blood Glucose</h2>
+      <div id="glucose-chart" class="chart"></div>
+    </section>
+
+    <section class="chart-wrapper">
+      <h2 class="chart-title">Daily Steps</h2>
+      <div id="steps-chart" class="chart"></div>
+    </section>
+
+    <section class="chart-wrapper">
+      <h2 class="chart-title">Heart Rate</h2>
+      <div id="heart-chart" class="chart"></div>
+    </section>
+
+    <div id="status">Loading…</div>
+
+    <script>
+      const USER_ID = 'david1';
+      const GLUCOSE_API = `/api/glucose?user_id=${encodeURIComponent(USER_ID)}`;
+      const STEPS_API = `/api/steps?user_id=${encodeURIComponent(USER_ID)}`;
+      const HEART_API = `/api/heart_rate?user_id=${encodeURIComponent(USER_ID)}`;
+
+      const {
+        createChart,
+        ColorType,
+        LineSeries,
+        HistogramSeries,
+      } = LightweightCharts;
+
+      const baseChartOptions = {
+        layout: {
+          background: { type: ColorType.Solid, color: '#0d1117' },
+          textColor: '#c9d1d9',
+        },
+        grid: {
+          vertLines: { color: '#161b22' },
+          horzLines: { color: '#161b22' },
+        },
+        rightPriceScale: { borderColor: '#30363d' },
+        timeScale: { borderColor: '#30363d' },
+      };
+
+      const glucoseChart = createChart(
+        document.getElementById('glucose-chart'),
+        baseChartOptions,
+      );
+      const glucoseSeries = glucoseChart.addSeries(LineSeries, {
+        color: '#ffb703',
+        lineWidth: 2,
+      });
+
+      const stepsChart = createChart(
+        document.getElementById('steps-chart'),
+        baseChartOptions,
+      );
+      const stepsSeries = stepsChart.addSeries(HistogramSeries, {
+        color: '#61dafb',
+        priceFormat: {
+          type: 'volume',
+        },
+        base: 0,
+      });
+
+      const heartChart = createChart(
+        document.getElementById('heart-chart'),
+        baseChartOptions,
+      );
+      const heartSeries = heartChart.addSeries(LineSeries, {
+        color: '#ff6b6b',
+        lineWidth: 2,
+      });
+
+      const status = document.getElementById('status');
+
+      async function loadData() {
+        try {
+          await Promise.all([loadGlucose(), loadSteps(), loadHeartRate()]);
+        } catch (err) {
+          console.error(err);
+          status.textContent = `Failed to load data: ${err.message}`;
+          return;
+        }
+        status.textContent = 'Charts up to date';
+      }
+
+      async function loadGlucose() {
+        const res = await fetch(GLUCOSE_API);
+        if (!res.ok) throw new Error(`Glucose HTTP ${res.status}`);
+        const rows = await res.json();
+
+        const data = rows
+          .filter((row) => row.mg_dl != null)
+          .map((row) => ({
+            time: Math.floor(new Date(row.sample_time).getTime() / 1000),
+            value: row.mg_dl,
+          }));
+
+        if (!data.length) throw new Error('No glucose data available');
+
+        glucoseSeries.setData(data);
+        glucoseChart.timeScale().fitContent();
+      }
+
+      async function loadSteps() {
+        const res = await fetch(STEPS_API);
+        if (!res.ok) throw new Error(`Steps HTTP ${res.status}`);
+        const rows = await res.json();
+
+        const data = rows
+          .filter((row) => row.total_steps != null)
+          .map((row) => ({
+            time: Math.floor(new Date(row.activity_date).getTime() / 1000),
+            value: row.total_steps,
+            color: '#61dafb',
+          }));
+
+        if (!data.length) throw new Error('No steps data available');
+
+        stepsSeries.setData(data);
+        stepsChart.timeScale().fitContent();
+      }
+
+      async function loadHeartRate() {
+        const res = await fetch(HEART_API);
+        if (!res.ok) throw new Error(`Heart HTTP ${res.status}`);
+        const rows = await res.json();
+
+        const data = rows
+          .filter((row) => row.bpm != null)
+          .map((row) => ({
+            time: Math.floor(new Date(row.sample_time).getTime() / 1000),
+            value: row.bpm,
+          }));
+
+        if (!data.length) throw new Error('No heart-rate data available');
+
+        heartSeries.setData(data);
+        heartChart.timeScale().fitContent();
+      }
+
+      loadData();
+    </script>
+  </body>
+</html>
